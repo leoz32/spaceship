@@ -1,4 +1,4 @@
-import { storedApiKey, streamCompletion } from "../llm/cerebras.ts"
+import { streamCompletion } from "../llm/cerebras.ts"
 import type { Dimension, DimensionContext, DimensionSource } from "./dimension.ts"
 
 const MENU_SIZE = 5
@@ -38,9 +38,6 @@ const SYSTEM_PROMPT = `用户消息包含已有故事、可选的锁定线索（
 表达: 对话 | 动作 | 描写`
 
 export const liveDimension: DimensionSource = async function* (context, signal) {
-  const apiKey = storedApiKey()
-  if (!apiKey) throw new Error("请先在模型设置中填写 API Key")
-
   const takenNames = context.taken.map(({ name }) => name.toLowerCase())
   const free = CATALOG.filter(({ name }) => !takenNames.includes(name))
   const generic = free.filter((axis) => axis.kind === "scale" || axis.options.length)
@@ -49,7 +46,7 @@ export const liveDimension: DimensionSource = async function* (context, signal) 
 
   const offered: string[] = []
   const deltas = streamCompletion({
-    apiKey,
+    role: "analysis",
     system: SYSTEM_PROMPT,
     user: userMessageOf(context, free, size),
     temperature: 0.3,

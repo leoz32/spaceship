@@ -1,3 +1,4 @@
+import { reportModelError } from "./model-notice.ts"
 import type { Point } from "../point.ts"
 import type { Lead } from "./attention.ts"
 import { strengthLevelOf, optionIndexAt, valueOf, type Control, type Dimension, type DimensionSource } from "./dimension.ts"
@@ -285,7 +286,7 @@ export function createFutureKnobs({
       if (!dimensions.length) throw new Error("模型未返回可用的控制方向")
       return dimensions
     } catch (error) {
-      if (!signal.aborted) console.error(error)
+      if (!signal.aborted) reportModelError(error)
     }
   }
 

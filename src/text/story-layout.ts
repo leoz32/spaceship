@@ -1,4 +1,4 @@
-import { sentenceSpans, type Span } from "./segments.ts"
+import { sentenceSpans, unwrapCjkLines, type Span } from "./segments.ts"
 
 const SENTENCE_END = /[.!?…。！？]["'”’」』）)\]】》〉]*$/u
 
@@ -43,5 +43,5 @@ export function endOf(text: string, { start, end }: Span) {
 }
 
 export function sentenceAt(text: string, { start, end }: Span) {
-  return text.slice(start, end).trim().replace(/\s+/g, " ")
+  return unwrapCjkLines(text.slice(start, end)).text.trim().replace(/\s+/g, " ")
 }

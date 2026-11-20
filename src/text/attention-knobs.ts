@@ -81,6 +81,8 @@ export function createAttentionKnobs({ source, textElement, knob, linkPath, acti
   /** Repaints even when `nextText` is unchanged, because the main knob may have moved. */
   function update(nextText: string) {
     if (nextText !== text) {
+      shown?.abort()
+      shown = undefined
       text = nextText
       words = wordSpans(text)
       wordRects = undefined
@@ -113,7 +115,8 @@ export function createAttentionKnobs({ source, textElement, knob, linkPath, acti
     })
   }
 
-  function prefetch() {
+  function prefetch(force = false) {
+    if (force) discardPrefetched()
     if (words.length && prefetched?.text !== text) prefetched = startAttention(source, text)
   }
 

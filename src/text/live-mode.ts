@@ -1,31 +1,17 @@
-import { KEY_STORAGE as CEREBRAS_KEY_STORAGE } from "../llm/cerebras.ts"
-import { KEY_STORAGE as GEMINI_KEY_STORAGE } from "../llm/decisions.ts"
+import { bindModelSettings } from "./model-settings.ts"
 
-/** Each key's field in the dialog's form, by name, and where it is kept for reuse. */
-const KEY_FIELDS = { cerebras: CEREBRAS_KEY_STORAGE, gemini: GEMINI_KEY_STORAGE }
-
-/**
- * Sim plays simulated sources; flight calls the models. The sources are chosen when the page loads, so switching reloads it in the other mode.
- * Launching always asks for both API keys first, prefilled with the ones kept from last time; the dialog's submit button returns "live".
- */
-export function bindModeToggle(toggle: HTMLButtonElement, dialog: HTMLDialogElement, isLive: boolean) {
-  const form = dialog.querySelector("form")!
-  const inputOf = (name: string) => form.elements.namedItem(name) as HTMLInputElement
+/** Switching modes reloads the app; settings can also be edited while a mode is active. */
+export function bindModeToggle(toggle: HTMLButtonElement, settingsButton: HTMLButtonElement, dialog: HTMLDialogElement, isLive: boolean) {
+  const settings = bindModelSettings(dialog, isLive, reloadAs)
   toggle.setAttribute("aria-pressed", `${isLive}`)
   toggle.querySelector("b")!.textContent = isLive ? "实时" : "模拟"
 
   toggle.addEventListener("click", () => {
     if (isLive) return reloadAs(false)
-    for (const [name, storageKey] of Object.entries(KEY_FIELDS)) inputOf(name).value = localStorage.getItem(storageKey) ?? ""
-    dialog.showModal()
+    settings.open()
   })
-  dialog.addEventListener("close", () => {
-    const choice = dialog.returnValue
-    dialog.returnValue = ""
-    if (choice !== "live") return
-    for (const [name, storageKey] of Object.entries(KEY_FIELDS)) localStorage.setItem(storageKey, inputOf(name).value.trim())
-    reloadAs(true)
-  })
+  settingsButton.addEventListener("click", settings.open)
+  return settings
 }
 
 function reloadAs(isLive: boolean) {

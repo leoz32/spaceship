@@ -1,19 +1,16 @@
-import { createDecisions, storedGeminiKey, type Question } from "../llm/decisions.ts"
+import { createDecisions, type Question } from "../llm/decisions.ts"
 import type { RealizationSource } from "./realization.ts"
 
 const MODEL = "gemini-decision-1"
 
 export const liveRealization: RealizationSource = async function* ({ context, sentences, asked, control }, signal) {
-  const apiKey = storedGeminiKey()
-  if (!apiKey) throw new Error("请先在模型设置中配置分析模型")
-
   const input = [
     ...(context ? [`已有故事\n${context}`] : []),
     `候选句子\n${sentences.map((sentence, i) => `[${i + 1}] ${sentence}`).join("\n")}`,
     `方向控制\n${control}`,
   ].join("\n\n")
   const questions = Object.fromEntries(asked.map((index) => [keyOf(index), questionAbout(index)]))
-  const { answers } = await createDecisions(apiKey, { model: MODEL, input, questions }, signal)
+  const { answers } = await createDecisions(undefined, { model: MODEL, input, questions }, signal)
 
   for (const index of asked) {
     const answer = answers[keyOf(index)]

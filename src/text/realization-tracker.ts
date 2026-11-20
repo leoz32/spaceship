@@ -1,3 +1,4 @@
+import { reportModelError } from "./model-notice.ts"
 import type { RealizationSource } from "./realization.ts"
 import type { Span } from "./segments.ts"
 import { isComplete, sentenceAt, sentenceUnderKnob, type StoryLayout } from "./story-layout.ts"
@@ -55,10 +56,13 @@ export function createRealizationTracker(source: RealizationSource, onScore: () 
     asked.forEach((i) => asking.add(keys[i]))
     const context = combined.slice(sentences[Math.max(0, first - CONTEXT_SENTENCES)].start, sentences[first].start).trim()
     try {
-      for await (const { index, confidence } of source({ context, sentences: texts, asked, control }, signal)) remember(keys[index], confidence)
+      for await (const { index, confidence } of source({ context, sentences: texts, asked, control }, signal)) {
+        if (signal.aborted) break
+        remember(keys[index], confidence)
+      }
       if (!signal.aborted) onScore()
     } catch (error) {
-      if (!signal.aborted) console.error(error)
+      if (!signal.aborted) reportModelError(error)
     } finally {
       asked.forEach((i) => asking.delete(keys[i]))
     }

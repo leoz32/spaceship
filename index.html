@@ -610,6 +610,7 @@
         display: contents;
       }
       #mode-toggle,
+      #settings-toggle,
       #sound-toggle,
       #extra-link {
         padding: 0 var(--gap);
@@ -713,61 +714,187 @@
       #sound-toggle[aria-pressed="false"] {
         color: var(--ink-4);
       }
-      /* Asks for the API keys each time live mode is entered. */
       #live-keys {
-        width: min(48ch, 100% - 2 * var(--padding));
-        padding: calc(2 * var(--gap));
+        box-sizing: border-box;
+        width: min(720px, calc(100vw - 32px));
+        max-height: calc(100dvh - 32px);
+        padding: 24px;
         border: var(--hair) solid var(--ink-3);
         background: var(--bg);
         color: var(--ink);
-
+        overflow: auto;
+        line-height: 1.7;
         &:modal {
           overscroll-behavior: contain;
         }
         &::backdrop {
-          background: rgb(0 0 0 / 0.7);
-          overflow: hidden;
-          overscroll-behavior: contain;
+          background: rgb(0 0 0 / 0.75);
         }
         form {
           display: grid;
-          gap: var(--gap);
+          gap: 16px;
         }
         h2,
         p {
           margin: 0;
-          font: inherit;
         }
-        p {
+        h2 {
+          font: inherit;
+          font-size: 18px;
+          color: var(--hot);
+        }
+        p,
+        small {
           color: var(--ink-2);
+        }
+        fieldset {
+          min-width: 0;
+          margin: 0;
+          padding: 16px;
+          border: var(--hair) solid var(--ink-4);
+          display: grid;
+          gap: 12px;
+        }
+        fieldset[hidden],
+        [hidden] {
+          display: none;
+        }
+        legend {
+          padding-inline: 6px;
         }
         label {
           display: grid;
-          grid-template-columns: 9ch 1fr;
+          grid-template-columns: 7em minmax(0, 1fr);
           align-items: center;
+          gap: 12px;
+        }
+        .check {
+          display: flex;
+          gap: 8px;
+          align-items: start;
+        }
+        .check input {
+          margin-top: 5px;
+          flex: none;
         }
         input,
-        button {
+        button,
+        select {
           font: inherit;
         }
-        /* Masked text rather than password fields, which password managers offer to save whatever autocomplete says. */
-        input {
-          -webkit-text-security: disc;
+        input:not([type="checkbox"]),
+        select {
+          width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+          padding: 7px 9px;
+          background: var(--bg);
+          color: var(--ink);
           border: var(--hair) solid var(--ink-3);
-          &:focus {
-            border-color: var(--hot);
-            outline: none;
-          }
+          border-radius: 2px;
+        }
+        input:focus,
+        select:focus,
+        button:focus-visible {
+          outline: 1px solid var(--hot);
+          outline-offset: 2px;
+        }
+        input[type="checkbox"] {
+          accent-color: var(--hot);
+        }
+        button {
+          padding: 6px 12px;
+          color: var(--ink);
+          background: var(--bg);
+          border: var(--hair) solid var(--ink-3);
+          border-radius: 2px;
+          cursor: pointer;
+        }
+        button:disabled {
+          opacity: 0.5;
+          cursor: wait;
+        }
+        button:hover {
+          border-color: var(--hot);
+        }
+        a {
+          color: var(--hot);
+          text-underline-offset: 3px;
+        }
+        summary {
+          cursor: pointer;
+          color: var(--ink-2);
+        }
+        details > .options {
+          display: grid;
+          gap: 12px;
+          padding-top: 12px;
+        }
+        .settings-row {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 12px;
         }
         .actions {
           display: flex;
+          flex-wrap: wrap;
           justify-content: end;
-          gap: var(--gap);
-          button[value="live"] {
-            color: var(--bg);
-            background: var(--hot);
-            border: var(--hair) solid var(--hot);
+          gap: 8px;
+        }
+        button[value="live"] {
+          background: var(--hot);
+          color: var(--bg);
+          border-color: var(--hot);
+        }
+        #settings-result {
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
+          color: var(--ink);
+        }
+        #settings-result:empty {
+          display: none;
+        }
+        #settings-result[data-error] {
+          color: var(--hot);
+        }
+        @media (max-width: 600px) {
+          padding: 16px;
+          label {
+            grid-template-columns: 1fr;
+            gap: 4px;
           }
+          fieldset {
+            padding: 12px;
+          }
+        }
+      }
+      #model-message {
+        position: fixed;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(620px, calc(100vw - 32px));
+        box-sizing: border-box;
+        z-index: 1100;
+        padding: 12px 16px;
+        border: var(--hair) solid var(--hot);
+        background: var(--bg);
+        color: var(--ink);
+        font-size: 13px;
+        line-height: 1.6;
+        output {
+          display: block;
+          overflow-wrap: anywhere;
+        }
+        button {
+          font: inherit;
+          cursor: pointer;
+          padding: 2px 8px;
+          margin-top: 8px;
+          color: var(--ink);
+          background: transparent;
+          border: var(--hair) solid var(--ink-3);
         }
       }
       /*
@@ -931,6 +1058,7 @@
     <div id="cursor" aria-hidden="true"></div>
     <footer id="tray">
       <button id="mode-toggle" type="button" aria-pressed="false" aria-label="切换模拟与实时模式">模式<b>模拟</b></button>
+      <button id="settings-toggle" type="button" aria-label="打开模型设置">模型设置</button>
       <output id="status" aria-live="off"></output>
       <button id="sound-toggle" type="button" aria-pressed="true" aria-label="切换音效">♪<b>开</b></button>
       <details id="help">
@@ -945,45 +1073,85 @@
       </details>
       <a id="extra-link" href="extra/style-1.html" title="原作者的设计实验与声音面板（英文）">设计实验</a>
     </footer>
+    <aside id="model-message" hidden aria-label="模型状态">
+      <output role="status" aria-live="polite"></output>
+      <button type="button" data-retry>重试</button>
+      <button type="button" data-settings>模型设置</button>
+      <button type="button" data-dismiss>收起</button>
+    </aside>
     <dialog id="live-keys" aria-labelledby="live-keys-title" aria-describedby="live-keys-note" closedby="closerequest">
-      <form method="dialog" autocomplete="off">
-        <h2 id="live-keys-title">启动实时模式</h2>
-        <p id="live-keys-note">使用你自己的 API 密钥调用模型。密钥保存在当前浏览器中；实时生成会产生相应的 API 用量。</p>
-        <label
-          >Cerebras
-          <input
-            name="cerebras"
-            type="text"
-            required
-            autocomplete="off"
-            autocapitalize="off"
-            autocorrect="off"
-            spellcheck="false"
-            data-1p-ignore
-            data-lpignore="true"
-            data-bwignore
-            data-form-type="other"
-            autofocus
-        /></label>
-        <label
-          >Gemini
-          <input
-            name="gemini"
-            type="text"
-            required
-            autocomplete="off"
-            autocapitalize="off"
-            autocorrect="off"
-            spellcheck="false"
-            data-1p-ignore
-            data-lpignore="true"
-            data-bwignore
-            data-form-type="other"
-        /></label>
-        <p class="actions">
-          <button type="button" command="close" commandfor="live-keys">取消</button>
-          <button value="live">启动</button>
-        </p>
+      <form autocomplete="off" novalidate>
+        <h2 id="live-keys-title">模型设置</h2>
+        <p id="live-keys-note">先选择厂商，填写 API Key。默认由同一个模型完成续写和文本分析。</p>
+        <fieldset>
+          <legend>生成模型 · 负责续写</legend>
+          <label>厂商<select name="generation-provider" aria-label="生成模型厂商"></select></label>
+          <label>API 地址<input name="generation-base-url" type="url" spellcheck="false" placeholder="https://api.example.com/v1" /></label>
+          <label>模型名称<input name="generation-model" type="text" spellcheck="false" placeholder="填写账户中已开通的模型 ID" /></label>
+          <label>API Key<input name="generation-key" type="password" autocomplete="off" spellcheck="false" data-1p-ignore data-lpignore="true" /></label>
+          <p data-provider-note="generation"></p>
+          <details>
+            <summary>模型参数</summary>
+            <div class="options">
+              <label class="check"><input name="generation-fast-mode" type="checkbox" />优先快速响应（使用该厂商的低思考参数）</label>
+              <label class="check"><input name="generation-json-mode" type="checkbox" checked />分析时使用 JSON 模式（不支持时可关闭）</label>
+            </div>
+          </details>
+          <div class="settings-row">
+            <button type="button" data-test="generation">测试生成模型</button><a data-provider-docs="generation" target="_blank" rel="noreferrer">厂商文档</a>
+          </div>
+        </fieldset>
+        <label class="check"><input name="analysis-shared" type="checkbox" checked />分析复用生成模型（只需一个 API Key）</label>
+        <fieldset id="analysis-profile" hidden>
+          <legend>分析模型 · 负责重点和方向</legend>
+          <label>厂商<select name="analysis-provider" aria-label="分析模型厂商"></select></label>
+          <label>API 地址<input name="analysis-base-url" type="url" spellcheck="false" placeholder="https://api.example.com/v1" /></label>
+          <label>模型名称<input name="analysis-model" type="text" spellcheck="false" placeholder="填写账户中已开通的模型 ID" /></label>
+          <label>API Key<input name="analysis-key" type="password" autocomplete="off" spellcheck="false" data-1p-ignore data-lpignore="true" /></label>
+          <p data-provider-note="analysis"></p>
+          <details>
+            <summary>模型参数</summary>
+            <div class="options">
+              <label class="check"><input name="analysis-fast-mode" type="checkbox" />优先快速响应（使用该厂商的低思考参数）</label>
+              <label class="check"><input name="analysis-json-mode" type="checkbox" checked />分析时使用 JSON 模式（不支持时可关闭）</label>
+            </div>
+          </details>
+          <div class="settings-row">
+            <button type="button" data-test="analysis">测试分析模型</button><a data-provider-docs="analysis" target="_blank" rel="noreferrer">厂商文档</a>
+          </div>
+        </fieldset>
+        <details>
+          <summary>连接与分析选项</summary>
+          <div class="options">
+            <label
+              >连接方式<select name="transport">
+                <option value="proxy">本机代理（推荐）</option>
+                <option value="direct">浏览器直连</option>
+              </select></label
+            >
+            <p id="transport-note"></p>
+            <label
+              >评分方式<select name="decision-backend">
+                <option value="compatible">兼容模型 · JSON 评分</option>
+                <option value="gemini">原版 Gemini Decisions</option>
+              </select></label
+            >
+            <div id="gemini-config" hidden>
+              <label>Gemini Key<input name="gemini-key" type="password" autocomplete="off" data-1p-ignore data-lpignore="true" /></label>
+              <p>仅评分使用原版 Decisions 接口；重点选择和方向菜单仍使用上面的分析模型。需有对应接口权限。</p>
+            </div>
+            <p>评分是模型对文字的估计，不代表内部注意力或经过校准的概率。</p>
+          </div>
+        </details>
+        <label class="check"><input name="remember-keys" type="checkbox" />记住密钥（保存在当前浏览器；不勾选则仅当前标签页会话有效）</label>
+        <p>测试和实时生成会消耗 API 额度。保存并应用会重新载入，当前故事将重新开始。</p>
+        <output id="settings-result" role="status" aria-live="polite"></output>
+        <div class="actions">
+          <button type="button" data-clear-keys>清除已保存密钥</button>
+          <button type="button" data-cancel>取消</button>
+          <button type="submit" value="save">保存设置</button>
+          <button type="submit" value="live">保存并开始实时生成</button>
+        </div>
       </form>
     </dialog>
     <script type="module" src="/src/text/main.ts"></script>

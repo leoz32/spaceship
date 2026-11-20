@@ -1,3 +1,4 @@
+import { reportModelError } from "./model-notice.ts"
 import type { Lead } from "./attention.ts"
 import { sentenceAt, sentenceUnderKnob, type StoryLayout } from "./story-layout.ts"
 
@@ -37,6 +38,7 @@ export function createKeywordRelevance(source: RelevanceSource, onChange: () => 
     const index = sentenceUnderKnob(layout)
     const nextTip = index === -1 ? "" : sentenceAt(layout.combined, layout.sentences[index])
     if (nextTip === tip && sameLeads(next, leads)) return
+    controller?.abort()
     tip = nextTip
     story = index === -1 ? "" : layout.combined.slice(0, layout.sentences[index].start).trim()
     leads = next
@@ -63,12 +65,13 @@ export function createKeywordRelevance(source: RelevanceSource, onChange: () => 
     keys.forEach((key) => asking.add(key))
     try {
       for await (const { index, relevance } of source({ story, tip: askedTip, leads: asked }, signal)) {
+        if (signal.aborted) break
         remember(keys[index], relevance)
         lastScores.set(leadKeyOf(asked[index]), relevance)
         onChange()
       }
     } catch (error) {
-      if (!signal.aborted) console.error(error)
+      if (!signal.aborted) reportModelError(error)
     } finally {
       keys.forEach((key) => asking.delete(key))
     }

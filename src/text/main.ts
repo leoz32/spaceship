@@ -18,6 +18,7 @@ import { liveSource } from "./live-completion.ts"
 import { liveDimension } from "./live-dimension.ts"
 import { liveInfluence } from "./live-influence.ts"
 import { bindModeToggle } from "./live-mode.ts"
+import { bindModelNotice, reportModelError } from "./model-notice.ts"
 import { liveRealization } from "./live-realization.ts"
 import { liveRelevance } from "./live-relevance.ts"
 import { createPointer, type Aim, type PointerTarget, type SelectionPreview, type Zone } from "./pointer.ts"
@@ -56,6 +57,7 @@ const handle = $<HTMLButtonElement>("#pointer")
 const statusElement = $("#status")
 const soundToggle = $<HTMLButtonElement>("#sound-toggle")
 const modeToggle = $<HTMLButtonElement>("#mode-toggle")
+const settingsToggle = $<HTMLButtonElement>("#settings-toggle")
 const extraLink = $<HTMLAnchorElement>("#extra-link")
 const railElement = $("#rail")
 const style = getComputedStyle(element)
@@ -111,6 +113,8 @@ let dwellCount = 0
 let topUpTimer: number | undefined
 let retryAt = 0
 let retryMs = RETRY_MS
+let generationPaused = false
+let emptyCompletions = 0
 let isFutureStale = false
 let prepared: { text: string; layout: PreparedTextWithSegments } | undefined
 let holdSound: Sound | undefined
@@ -119,7 +123,22 @@ let didHold = false
 /** The previous drag point, for how fast the knob moves. */
 let lastDrag: { point: Point; at: number } | undefined
 
-bindModeToggle(modeToggle, $<HTMLDialogElement>("#live-keys"), isLive)
+const modelSettings = bindModeToggle(modeToggle, settingsToggle, $<HTMLDialogElement>("#live-keys"), isLive)
+bindModelNotice(
+  $("#model-message"),
+  () => {
+    generationPaused = true
+  },
+  () => {
+    generationPaused = false
+    emptyCompletions = 0
+    retryAt = 0
+    retryMs = RETRY_MS
+    attention.prefetch(true)
+    restartDwell()
+  },
+  modelSettings.open,
+)
 startSound()
 showSoundToggle()
 soundToggle.addEventListener("click", () => {
@@ -285,9 +304,10 @@ function afterStreaming(request: () => void) {
 }
 
 function regenerateFuture() {
+  if (generationPaused) return
   isFutureStale = false
   restCount = shownCount ?? 0
-  stream.regenerate(shownCount ?? 0, "steering changed", steering())
+  void stream.regenerate(shownCount ?? 0, "steering changed", steering()).catch((error) => reportModelError(error, "generation"))
 }
 
 function steering(): Steering {
@@ -306,21 +326,26 @@ function scheduleTopUp() {
 }
 
 function topUp() {
-  if (isRegenerationHeld || stream.activity().isGenerating || performance.now() < retryAt) return
+  if (generationPaused || isRegenerationHeld || stream.activity().isGenerating || performance.now() < retryAt) return
   const words = countWords(stream.text)
   if (words - (shownCount ?? 0) >= BUFFER_WORDS) return
   stream.generate("buffer low", steering()).then(
     (outcome) => outcome === "done" && settleTopUp(words),
-    (error) => (console.error(error), settleTopUp(words)),
+    (error) => reportModelError(error, "generation"),
   )
 }
 
 /** A top-up that added words resets the retry delay; one that added none waits before trying again, longer each time. */
 function settleTopUp(wordsBefore: number) {
   if (countWords(stream.text) > wordsBefore) {
+    emptyCompletions = 0
     retryMs = RETRY_MS
     retryAt = 0
     return scheduleTopUp()
+  }
+  if (++emptyCompletions >= 3) {
+    reportModelError(new Error("模型连续返回空续写，请检查模型设置后手动重试。"), "generation")
+    return
   }
   retryAt = performance.now() + retryMs
   setTimeout(scheduleTopUp, retryMs)
@@ -348,6 +373,7 @@ function pointerTargets(): PointerTarget[] {
       },
     })),
     { rects: [modeToggle.getBoundingClientRect()], pad: TRAY_PAD_PX, isHotOnHover: true, wake: modeToggle },
+    { rects: [settingsToggle.getBoundingClientRect()], pad: TRAY_PAD_PX, isHotOnHover: true, wake: settingsToggle },
     { rects: [soundToggle.getBoundingClientRect()], pad: TRAY_PAD_PX, isHotOnHover: true, wake: soundToggle },
     { rects: [extraLink.getBoundingClientRect()], pad: TRAY_PAD_PX, isHotOnHover: true, wake: extraLink },
   ]
@@ -368,7 +394,7 @@ function clientRectsOf({ start, end }: Span) {
 function zoneAt(target: Element, x: number, y: number): Zone {
   const point = { x: x + scrollX, y: y + scrollY }
   if (attention.isDragging()) return "box"
-  if (target.closest(".knob, button, a, #tray, dialog")) return "other"
+  if (target.closest(".knob, button, a, #tray, dialog, #model-message")) return "other"
   if (isAhead(caretAt(point, metricsOf()), caret)) return "ahead"
   if (!target.closest("#text")) return "other"
   return attention.isOverBox(point) ? "box" : "text"

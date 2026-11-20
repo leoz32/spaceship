@@ -1,3 +1,4 @@
+import { reportModelError } from "./model-notice.ts"
 /** A shaded run of words around an underlined keyword, extending `before` and `after` words from it. Indices count the word-like segments of the text, as given by `wordSpans`. */
 export type AttentionBox = { keyword: number; before: number; after: number }
 
@@ -40,7 +41,7 @@ export function startAttention(source: AttentionSource, text: string): Attention
         notify()
       }
     } catch (error) {
-      if (!controller.signal.aborted) console.error(error)
+      if (!controller.signal.aborted) reportModelError(error)
     } finally {
       isDone = true
       notify()

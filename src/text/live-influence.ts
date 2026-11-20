@@ -1,4 +1,4 @@
-import { createDecisions, storedGeminiKey, type Question } from "../llm/decisions.ts"
+import { createDecisions, type Question } from "../llm/decisions.ts"
 import type { Focus, InfluenceSource } from "./influence.ts"
 
 const MODEL = "gemini-decision-1"
@@ -15,15 +15,12 @@ const QUESTIONS: Record<Focus["kind"], { instructions: string; levels: string[] 
 }
 
 export const liveInfluence: InfluenceSource = async function* (sentences, focus, signal) {
-  const apiKey = storedGeminiKey()
-  if (!apiKey) throw new Error("请先在模型设置中配置分析模型")
-
   const { instructions, levels } = QUESTIONS[focus.kind]
   const input = `故事句子\n${sentences.map((sentence, i) => `[${i + 1}] ${sentence}`).join("\n")}\n\n${focus.kind === "next sentence" ? "下一句" : "关键词组"}\n${focus.text}`
   const questions = Object.fromEntries(
     sentences.map((_, i): [string, Question] => [keyOf(i), { type: "score", instructions: `句子 [${i + 1}] 在多大程度上${instructions}？`, criteria: levels }]),
   )
-  const { answers } = await createDecisions(apiKey, { model: MODEL, input, questions }, signal)
+  const { answers } = await createDecisions(undefined, { model: MODEL, input, questions }, signal)
 
   for (const index of sentences.keys()) {
     const answer = answers[keyOf(index)]

@@ -1,4 +1,4 @@
-import { storedApiKey, streamCompletion } from "../llm/cerebras.ts"
+import { streamCompletion } from "../llm/cerebras.ts"
 import { STORY_OPENINGS } from "../story/openings.ts"
 import { STORY_MAX_WORDS, STORY_REQUEST } from "../story/prompt.ts"
 import { strengthLevelOf, valueOf, type Control } from "./dimension.ts"
@@ -40,13 +40,10 @@ export function expandToStoryStart(text: string) {
 }
 
 async function* completeStory(prefix: string, steering: Steering, signal: AbortSignal) {
-  const apiKey = storedApiKey()
-  if (!apiKey) throw new Error("请先在模型设置中填写 API Key")
-
   const isSteered = steering.leads.length > 0 || steering.controls.length > 0
   const request = isSteered ? { ...STEERED_REQUEST, user: steeredUserMessage(prefix, steering) } : { ...STORY_REQUEST, user: prefix }
   let head: string | undefined = ""
-  for await (const delta of streamCompletion({ ...request, apiKey, signal })) {
+  for await (const delta of streamCompletion({ ...request, signal })) {
     if (head === undefined) {
       yield delta
       continue
@@ -63,6 +60,7 @@ async function* completeStory(prefix: string, steering: Steering, signal: AbortS
 /** Suppress a repeated suffix, using reading units so a Chinese paragraph is not one giant word. */
 export function withoutEcho(prefix: string, head: string) {
   const start = head.trimStart()
+  if (/[.!?…。！？]["'”’」』）)\]】》〉]*$/u.test(prefix.trimEnd())) return start
   const prefixSpans = readingSpans(prefix)
   const tail = prefixSpans.slice(-MAX_ECHO_WORDS).map(({ start, end }) => bareWord(prefix.slice(start, end)))
   const words = readingSpans(start)
@@ -82,12 +80,14 @@ export function withoutEcho(prefix: string, head: string) {
 /** English continuations need a word boundary; Chinese continuations do not. */
 export function joinContinuation(prefix: string, continuation: string) {
   if (!continuation || !prefix || /\s$/u.test(prefix) || /^\s/u.test(continuation)) return continuation
+  if (/^['’](?:s|d|ll|re|ve|m|t)\b/iu.test(continuation)) return continuation
+  if (/^["”’](?:\s|[.,;:!?]|$)/u.test(continuation)) return continuation
   const needsSpace = /[\p{Script=Latin}\p{N}.,;:!?"'’”)]$/u.test(prefix) && /^[\p{Script=Latin}\p{N}"'“‘]/u.test(continuation)
   return needsSpace ? ` ${continuation}` : continuation
 }
 
 function bareWord(word: string) {
-  return word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "")
+  return word.toLowerCase().replaceAll("’", "'")
 }
 
 function steeredUserMessage(prefix: string, { leads, controls }: Steering) {

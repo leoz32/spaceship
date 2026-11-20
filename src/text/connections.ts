@@ -1,3 +1,4 @@
+import { reportModelError } from "./model-notice.ts"
 import type { Focus, InfluenceSource } from "./influence.ts"
 import type { Span } from "./segments.ts"
 import { endOf, isComplete, sentenceAt, type StoryLayout } from "./story-layout.ts"
@@ -83,7 +84,7 @@ export function createConnections({ source, onChange }: ConnectionsOptions) {
       remember(key, { kind, focus, strengths: spans.flatMap((span, i) => (strengths[i] === undefined ? [] : [{ span, strength: strengths[i] }])) })
       show()
     } catch (error) {
-      if (!controller.signal.aborted) console.error(error)
+      if (!controller.signal.aborted) reportModelError(error)
     } finally {
       if (pending?.controller === controller) pending = undefined
     }

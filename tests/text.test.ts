@@ -5,7 +5,7 @@ import { simulatedSource } from "../src/text/completion.ts"
 import { attentionBoxFromLine } from "../src/text/live-attention.ts"
 import { expandToStoryStart, joinContinuation, withoutEcho } from "../src/text/live-completion.ts"
 import { readingSpans, sentenceSpans, wordSpans } from "../src/text/segments.ts"
-import { displayedPrefixEnd, isComplete, storyLayoutOf } from "../src/text/story-layout.ts"
+import { displayedPrefixEnd, isComplete, sentenceAt, storyLayoutOf } from "../src/text/story-layout.ts"
 import { createTextStream, type Steering } from "../src/text/text-stream.ts"
 import { countWords, firstWords } from "../src/text/words.ts"
 
@@ -69,8 +69,7 @@ test("关键词按原文位置定位，支持中文软换行并拒绝编造短�
   const box = attentionBoxFromLine("艾拉握紧[钥匙]", text)
   assert.ok(box)
   const spans = wordSpans(text)
-  assert.equal(text.slice(spans[box.keyword].start, spans[box.keyword].end), "钥")
-  assert.ok(box.after >= 1)
+  assert.equal(text.slice(spans[box.keyword].start, spans[box.keyword].end), "钥\n匙")
   assert.equal(attentionBoxFromLine("艾拉找到了[宝藏]", text), undefined)
 })
 
@@ -133,4 +132,24 @@ test("生成取消后，等待首块的任务得到释放", async () => {
   finish!()
   assert.equal(await generation, "aborted")
   assert.equal(stream.text, "")
+})
+
+test("中文换行位置改变时，关键词索引仍保持一致", () => {
+  const text = "艾拉走进古堡，握紧钥匙。"
+  const wrapped = "艾拉走进古\n堡，握紧钥\n匙。"
+  const normalizedWords = (value: string) => wordSpans(value).map(({ start, end }) => value.slice(start, end).replace(/\n/g, ""))
+  assert.deepEqual(normalizedWords(wrapped), normalizedWords(text))
+  const sourceBox = attentionBoxFromLine("握紧[钥匙]", text)
+  const wrappedBox = attentionBoxFromLine("握紧[钥匙]", wrapped)
+  assert.deepEqual(wrappedBox, sourceBox)
+  assert.equal(sentenceAt(wrapped, { start: 0, end: wrapped.length }), text)
+  assert.equal(sentenceAt("The door\nwas locked.", { start: 0, end: 20 }), "The door was locked.")
+})
+
+test("跨句重复主语不是回声，不误删正常叙述", () => {
+  assert.equal(withoutEcho("她握紧钥匙。", "钥匙在月光下发亮。"), "钥匙在月光下发亮。")
+  assert.equal(withoutEcho("She took a breath.", "Breath fogged the window."), "Breath fogged the window.")
+  assert.equal(joinContinuation("Mara", "’s hand trembled."), "’s hand trembled.")
+  assert.equal(joinContinuation("She said: “Wait", "” and left."), "” and left.")
+  assert.equal(withoutEcho("密码是314", "3.14是另一回事。"), "3.14是另一回事。")
 })

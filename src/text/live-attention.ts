@@ -1,4 +1,4 @@
-import { storedApiKey, streamCompletion } from "../llm/cerebras.ts"
+import { streamCompletion } from "../llm/cerebras.ts"
 import type { AttentionBox, AttentionSource } from "./attention.ts"
 import { wordSpans } from "./segments.ts"
 
@@ -19,11 +19,8 @@ const SYSTEM_PROMPT = `用户消息是一段故事，停在读者当前的位置
 听见[走廊]深处`
 
 export const liveAttention: AttentionSource = async function* (text, signal) {
-  const apiKey = storedApiKey()
-  if (!apiKey) throw new Error("请先在模型设置中填写 API Key")
-
   const yielded = new Set<number>()
-  const deltas = streamCompletion({ apiKey, system: SYSTEM_PROMPT, user: text, temperature: 0.3, maxCompletionTokens: 1000, signal })
+  const deltas = streamCompletion({ role: "analysis", system: SYSTEM_PROMPT, user: text, temperature: 0.3, maxCompletionTokens: 1000, signal })
 
   for await (const line of linesOf(deltas)) {
     const box = attentionBoxFromLine(line, text)
