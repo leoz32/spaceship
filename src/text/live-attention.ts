@@ -4,32 +4,29 @@ import { wordSpans } from "./segments.ts"
 
 const MAX_BOXES = 3
 
-const SYSTEM_PROMPT = `
-The user message is the start of a story, cut off where the reader is. Pick the key phrases already in it that the very next words depend on most: the main influences on what comes right after the cut.
+const SYSTEM_PROMPT = `用户消息是一段故事，停在读者当前的位置。找出最能影响下一句内容的已有关键短语。
 
-- Pick 1 to 3 phrases: 1 when a single phrase drives what comes next, more only when several do.
-- Each phrase is an exact, unbroken copy of 2 to 8 consecutive words from the story. Do not skip, change, add or predict words.
-- In every phrase, wrap the single word that matters most in [brackets].
-- Output one phrase per line and nothing else.
+- 选择 1 至 3 个短语；只有一个主要线索时只给一个。
+- 每个短语必须逐字摘自原文连续片段，不可改字、补字、预测未来内容或跳过文字。中文短语约 4 至 20 字，英文短语 2 至 8 词。
+- 用半角 [方括号] 标记短语中最重要的一个词。中文可以是双字词、人名或完整名词，不要拆开它。
+- 每行只输出一个短语，不加编号、解释或 Markdown。排版换行可以忽略。
 
-EXAMPLE
-User: Mara had locked the kitchen an hour ago. Now the alarm went off, but it was not the one on her phone. She lay still and
-Assistant:
-locked the [kitchen] an hour ago
-it was [not] the one on her phone
-She lay [still] and
-`.trim()
+示例
+用户：艾拉推开城堡大门，发现父亲留下的信不见了。她握紧钥匙，听见走廊深处
+助手：
+父亲留下的[信]不见了
+她握紧[钥匙]
+听见[走廊]深处`
 
 export const liveAttention: AttentionSource = async function* (text, signal) {
   const apiKey = storedApiKey()
-  if (!apiKey) throw new Error("save an API key first")
+  if (!apiKey) throw new Error("请先在模型设置中填写 API Key")
 
-  const textWords = wordsOf(text)
   const yielded = new Set<number>()
   const deltas = streamCompletion({ apiKey, system: SYSTEM_PROMPT, user: text, temperature: 0.3, maxCompletionTokens: 1000, signal })
 
   for await (const line of linesOf(deltas)) {
-    const box = boxFromLine(line, textWords)
+    const box = attentionBoxFromLine(line, text)
     if (!box || yielded.has(box.keyword)) continue
     yielded.add(box.keyword)
     yield box
@@ -47,32 +44,38 @@ async function* linesOf(deltas: AsyncIterable<string>) {
   yield buffer
 }
 
-function boxFromLine(line: string, textWords: string[]): AttentionBox | undefined {
+/** Match the quoted source text first, then map bracket positions to semantic words. Context-sensitive CJK segmentation cannot safely be matched as isolated word arrays. */
+export function attentionBoxFromLine(line: string, text: string): AttentionBox | undefined {
   const open = line.indexOf("[")
   const close = line.indexOf("]", open)
-  const hasBrackets = open !== -1 && close !== -1
-  const phrase = wordsOf(line.replace(/[[\]]/g, ""))
-  if (!phrase.length) return
-
-  const keywordWords = hasBrackets ? wordsOf(line.slice(open + 1, close)) : []
-  const offset = hasBrackets ? wordsOf(line.slice(0, open)).length : phrase.length - 1
-  const keyword = hasBrackets ? keywordWords[0] : phrase[offset]
-
-  const at = lastIndexOfSequence(textWords, phrase)
-  if (at !== -1 && offset < phrase.length) return { keyword: at + offset, before: offset, after: phrase.length - 1 - offset }
-
-  const keywordAt = hasBrackets && keyword ? textWords.lastIndexOf(keyword) : -1
-  if (keywordAt !== -1) return { keyword: keywordAt, before: 0, after: 0 }
+  if (open === -1 || close <= open + 1) return
+  const phrase = line.slice(0, open) + line.slice(open + 1, close) + line.slice(close + 1)
+  const compact = compactWithOffsets(text)
+  const quoted = compactWithOffsets(phrase).text
+  const at = compact.text.lastIndexOf(quoted)
+  if (!quoted || at === -1) return
+  const keywordOffset = compactWithOffsets(line.slice(0, open)).text.length
+  const keywordLength = compactWithOffsets(line.slice(open + 1, close)).text.length
+  if (!keywordLength) return
+  const phraseStart = compact.offsets[at]
+  const phraseEnd = compact.offsets[at + quoted.length - 1] + 1
+  const keywordStart = compact.offsets[at + keywordOffset]
+  const keywordEnd = compact.offsets[at + keywordOffset + keywordLength - 1] + 1
+  const words = wordSpans(text)
+  const first = words.findIndex((word) => word.end > phraseStart)
+  const last = words.findLastIndex((word) => word.start < phraseEnd)
+  const keyword = words.findIndex((word) => word.end > keywordStart && word.start < keywordEnd)
+  if (first === -1 || keyword < first || keyword > last) return
+  return { keyword, before: keyword - first, after: last - keyword }
 }
 
-function lastIndexOfSequence(haystack: string[], needle: string[]) {
-  for (let at = haystack.length - needle.length; at >= 0; at--) {
-    if (needle.every((word, i) => haystack[at + i] === word)) return at
+function compactWithOffsets(text: string) {
+  const offsets: number[] = []
+  let compact = ""
+  for (let index = 0; index < text.length; index++) {
+    if (/\s/u.test(text[index])) continue
+    offsets.push(index)
+    compact += text[index] === "’" ? "'" : text[index]
   }
-  return -1
-}
-
-function wordsOf(text: string) {
-  const normalized = text.replaceAll("’", "'")
-  return wordSpans(normalized).map(({ start, end }) => normalized.slice(start, end).toLowerCase())
+  return { text: compact, offsets }
 }

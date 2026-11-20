@@ -33,7 +33,7 @@ import { showStatus } from "./status-line.ts"
 import { storyLayoutOf, type StoryLayout } from "./story-layout.ts"
 import { domPointAt, textOffsetOf } from "./text-offsets.ts"
 import { createTextStream, type Steering } from "./text-stream.ts"
-import { countWords, firstWords } from "./words.ts"
+import { countWords, firstWords, readingSpans } from "./words.ts"
 
 const DWELL_MS = 100
 /** Generated words kept ready past the knob: whenever fewer remain, the stream continues the text, appending, never rewriting. */
@@ -223,13 +223,13 @@ async function revealAttention() {
 function render() {
   /** Unrounded, unlike `clientWidth`: a line that fills the column exactly measures a hair wider than the rounded width. */
   const lines = layoutLines(prepareWords(), caret, element.getBoundingClientRect().width)
-  const text = lines.join(" ")
+  story = storyLayoutOf(lines, stream.text)
+  const text = story.text
   const count = countWords(text)
 
   if (count !== shownCount) restartDwell()
   shownCount = count
   scheduleTopUp()
-  story = storyLayoutOf(lines, stream.text)
   if (element.textContent !== story.content) element.textContent = story.content
   connections.update(story)
   shownText = text
@@ -337,14 +337,14 @@ function prepareWords() {
 function pointerTargets(): PointerTarget[] {
   const leads = attention.leads()
   return [
-    { rects: [handle.getBoundingClientRect()], pad: 5, wake: handle, label: () => `<b>${shownCount ?? 0}</b> words` },
+    { rects: [handle.getBoundingClientRect()], pad: 5, wake: handle, label: () => `<b>${shownCount ?? 0}</b> 字/词` },
     ...[...document.querySelectorAll<HTMLElement>(".future")].map((knob) => ({ rects: [knob.getBoundingClientRect()], pad: 5 })),
     ...attention.spans().map(({ phrase }, i) => ({
       rects: clientRectsOf(phrase),
       pad: 3,
       label: () => {
         const { relevance: value, isMeasuring } = relevance.relevanceOf(leads[i])
-        return isMeasuring ? "box <b>··</b>" : value === undefined ? "box" : `box <b>${value >= 1 ? "1.0" : value.toFixed(2).replace(/^0/, "")}</b>`
+        return isMeasuring ? "重点 <b>··</b>" : value === undefined ? "重点" : `重点 <b>${value >= 1 ? "1.0" : value.toFixed(2).replace(/^0/, "")}</b>`
       },
     })),
     { rects: [modeToggle.getBoundingClientRect()], pad: TRAY_PAD_PX, isHotOnHover: true, wake: modeToggle },
@@ -417,7 +417,7 @@ function aimAt(x: number, y: number): Aim {
   const lines = layoutLines(prepareWords(), { line: target.line, x: Math.min(target.x, width) }, width)
   const knob = handle.getBoundingClientRect()
   return {
-    gap: countWords(lines.join(" ")) - (shownCount ?? 0),
+    gap: countWords(lines.join("\n")) - (shownCount ?? 0),
     tip: tipRect(),
     knob: { x: knob.x + knob.width / 2, y: knob.y + knob.height / 2 },
   }
@@ -434,10 +434,12 @@ function lastWordRect(lines: string[]) {
   const index = lines.findLastIndex((line) => line.trim())
   if (index === -1) return
   const line = lines[index].trimEnd()
-  const word = line.slice(line.lastIndexOf(" ") + 1)
+  const last = readingSpans(line).at(-1)
+  if (!last) return
+  const word = line.slice(last.start, last.end)
   const { left, top } = element.getBoundingClientRect()
   const lineHeight = parseFloat(style.lineHeight)
-  const x = left + measure.measureText(line.slice(0, line.length - word.length)).width
+  const x = left + measure.measureText(line.slice(0, last.start)).width
   return new DOMRect(x, top + parseFloat(style.paddingTop) + index * lineHeight, measure.measureText(word).width, lineHeight)
 }
 
@@ -505,7 +507,7 @@ function soundWordsCrossed(before: number | undefined, point: Point) {
 function showSoundToggle() {
   const isOn = isSoundOn()
   soundToggle.setAttribute("aria-pressed", `${isOn}`)
-  soundToggle.querySelector("b")!.textContent = isOn ? "on" : "off"
+  soundToggle.querySelector("b")!.textContent = isOn ? "开" : "关"
 }
 
 /** Read on every use, since the centered column moves with the window. */

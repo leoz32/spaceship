@@ -31,7 +31,7 @@ export function gradeIndexOf(position: number) {
 export function valueOf({ dimension, position }: Pick<Control, "dimension" | "position">) {
   if (dimension.kind === "choice") return dimension.options[optionIndexAt(dimension.options.length, position)]
   const { low, high } = dimension
-  return ["very " + low, "somewhat " + low, `midway between ${low} and ${high}`, "somewhat " + high, "very " + high][gradeIndexOf(position)]
+  return [`非常${low}`, `偏向${low}`, `${low}与${high}之间`, `偏向${high}`, `非常${high}`][gradeIndexOf(position)]
 }
 
 /** Thirds of the strength range. */

@@ -5,12 +5,12 @@ const MODEL = "gemini-decision-1"
 
 export const liveRealization: RealizationSource = async function* ({ context, sentences, asked, control }, signal) {
   const apiKey = storedGeminiKey()
-  if (!apiKey) throw new Error("save a Gemini API key on the decisions page first")
+  if (!apiKey) throw new Error("请先在模型设置中配置分析模型")
 
   const input = [
-    ...(context ? [`STORY SO FAR\n${context}`] : []),
-    `CANDIDATE SENTENCES\n${sentences.map((sentence, i) => `[${i + 1}] ${sentence}`).join("\n")}`,
-    `CONTROL\n${control}`,
+    ...(context ? [`已有故事\n${context}`] : []),
+    `候选句子\n${sentences.map((sentence, i) => `[${i + 1}] ${sentence}`).join("\n")}`,
+    `方向控制\n${control}`,
   ].join("\n\n")
   const questions = Object.fromEntries(asked.map((index) => [keyOf(index), questionAbout(index)]))
   const { answers } = await createDecisions(apiKey, { model: MODEL, input, questions }, signal)
@@ -28,10 +28,10 @@ function keyOf(index: number) {
 function questionAbout(index: number): Question {
   return {
     type: "noul",
-    instructions: `Does sentence [${index + 1}] deliver what the CONTROL asks for?`,
+    instructions: `句子 [${index + 1}] 是否体现了方向控制要求的取值？`,
     criteria: {
-      true_description: "The sentence clearly shows the control's value.",
-      false_description: "The sentence does not show it, or shows the opposite.",
+      true_description: "这句话清楚地体现了方向控制的取值。",
+      false_description: "这句话没有体现该取值，或呈现了相反方向。",
     },
   }
 }

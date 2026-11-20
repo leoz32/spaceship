@@ -261,7 +261,7 @@ export function createPointer({ layer, targets, isDragging, zoneAt, caretAt, sel
       }).join(""),
     )
     if (state === "pulling" && tip) liveMarks.innerHTML += `<path class="corners" d="${outline([tip], TEXT_PAD_PX).corners}" />`
-    vectorLabel.innerHTML = state === "pulling" ? `<b>+${gap}</b> words · ${Math.round(rate)} w/s` : "behind the knob"
+    vectorLabel.innerHTML = state === "pulling" ? `<b>+${gap}</b> 字/词 · ${Math.round(rate)} 字词/秒` : "位于旋钮之前"
     vectorLabel.style.translate = `${hand.x + 12}px ${hand.y + 10}px`
   }
 }

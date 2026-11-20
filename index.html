@@ -1,8 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>Spaceship</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Spaceship IDE 中文版：通过旋钮、重点锁定和实时续写，掌控故事的生成方向。" />
+    <title>Spaceship IDE · 中文版</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>" />
     <style>
       @property --fill {
@@ -33,13 +35,13 @@
         --stroke: 1.5px;
         --selected-stroke: 3px;
         --dash: 3 3;
-        --text-size: 11px;
-        --line: 18px;
+        --text-size: 13px;
+        --line: 22px;
         /* Read by the HUD to measure its labels. */
-        --hud-size: 10px;
-        --hud-line: 14px;
-        --numeral-size: 9px;
-        --tray-height: 18px;
+        --hud-size: 11px;
+        --hud-line: 16px;
+        --numeral-size: 10px;
+        --tray-height: 24px;
         --padding: 32px;
         /* Room each side of the column for pinned future knobs and their labels. */
         --margin: 24ch;
@@ -59,6 +61,9 @@
         color: var(--ink);
         font:
           var(--text-size) "JetBrains Mono Variable",
+          "Noto Sans Mono CJK SC",
+          "Microsoft YaHei",
+          "PingFang SC",
           monospace;
         -webkit-font-smoothing: antialiased;
       }
@@ -576,7 +581,9 @@
         }
 
         /* Every reading has a fixed width that fits its widest value, so the centered tray never shifts as digits come and go. */
-        [data-field="rate"] b,
+        [data-field="rate"] b {
+          width: 10ch;
+        }
         [data-field="latency"] b {
           width: 7ch;
         }
@@ -634,6 +641,65 @@
         }
         &[aria-pressed="false"] b {
           animation: blink 1s steps(1) infinite;
+        }
+      }
+      #help {
+        padding-inline: var(--gap);
+        border-left: var(--hair) solid var(--ink-5);
+
+        summary {
+          cursor: pointer;
+          color: var(--ink-2);
+          list-style-position: inside;
+        }
+        > div {
+          position: fixed;
+          right: var(--gap);
+          bottom: calc(var(--tray-height) + var(--gap));
+          width: min(36em, calc(100vw - 4 * var(--gap)));
+          padding: calc(2 * var(--gap));
+          box-sizing: border-box;
+          border: var(--hair) solid var(--ink-3);
+          background: var(--bg);
+          color: var(--ink-2);
+          font-size: var(--text-size);
+          line-height: 1.7;
+          white-space: normal;
+          max-height: 65vh;
+          overflow-y: auto;
+        }
+        strong {
+          color: var(--ink);
+          font-weight: 500;
+        }
+        p {
+          margin-block: var(--gap) 0;
+        }
+      }
+      @media (max-width: 800px) {
+        :root {
+          --margin: 12ch;
+          --rail-width: 108px;
+        }
+        #tray {
+          justify-content: start;
+          overflow-x: auto;
+        }
+      }
+      @media (max-width: 600px) {
+        :root {
+          --rail-width: 72px;
+          --margin: 24px;
+          --padding: 24px;
+        }
+        #text {
+          width: calc(100% - 124px);
+          margin-left: 88px;
+          margin-right: 36px;
+        }
+        #rail .row {
+          grid-template-columns: 1.5ch 3px 3ch 1fr 5px;
+          column-gap: 2px;
         }
       }
       @keyframes blink {
@@ -858,28 +924,33 @@
       <path id="future-links" />
       <path id="future-tuned-link" />
     </svg>
-    <button
-      id="pointer"
-      class="knob"
-      type="button"
-      aria-label="drag to scrub the text forward or back, double click to expand attention highlights or remove everything attached, double click and hold to open the fan menu"
-    ></button>
+    <button id="pointer" class="knob" type="button" aria-label="拖动以向前阅读或回退重写；双击展开重点高亮或移除所有控制；双击后按住可打开方向菜单"></button>
     <template id="future-knob">
-      <button class="knob future" type="button" aria-label="future knob, …, double click to delete"><span>…</span></button>
+      <button class="knob future" type="button" aria-label="方向旋钮，双击删除"><span>…</span></button>
     </template>
     <div id="cursor" aria-hidden="true"></div>
     <footer id="tray">
-      <button id="mode-toggle" type="button" aria-pressed="false" aria-label="flight mode">mode<b>sim</b></button>
+      <button id="mode-toggle" type="button" aria-pressed="false" aria-label="切换模拟与实时模式">模式<b>模拟</b></button>
       <output id="status" aria-live="off"></output>
-      <button id="sound-toggle" type="button" aria-pressed="true" aria-label="sound">♪<b>on</b></button>
-      <a id="extra-link" href="extra/style-1.html">extra</a>
+      <button id="sound-toggle" type="button" aria-pressed="true" aria-label="切换音效">♪<b>开</b></button>
+      <details id="help">
+        <summary>操作帮助</summary>
+        <div>
+          <strong>用旋钮掌控故事</strong>
+          <p>拖动正文末尾的圆点向前阅读；向后拖动可丢弃后续内容，探索新的写法。</p>
+          <p>双击圆点查看重点高亮。拖动高亮内容可锁定人物或线索。</p>
+          <p>双击圆点后按住，拉出方向旋钮；转动选择方向，拉远增加影响强度。双击方向旋钮可删除。</p>
+          <p>模拟模式用于体验交互，剧情与评分为演示数据；实时模式需配置模型。界面评分是模型对文本的估计，不是内部注意力权重。</p>
+        </div>
+      </details>
+      <a id="extra-link" href="extra/style-1.html" title="原作者的设计实验与声音面板（英文）">设计实验</a>
     </footer>
     <dialog id="live-keys" aria-labelledby="live-keys-title" aria-describedby="live-keys-note" closedby="closerequest">
       <form method="dialog" autocomplete="off">
-        <h2 id="live-keys-title">launch</h2>
-        <p id="live-keys-note">Lift off from the simulator to call the real API with your own keys, kept in this browser's local storage.</p>
+        <h2 id="live-keys-title">启动实时模式</h2>
+        <p id="live-keys-note">使用你自己的 API 密钥调用模型。密钥保存在当前浏览器中；实时生成会产生相应的 API 用量。</p>
         <label
-          >cerebras
+          >Cerebras
           <input
             name="cerebras"
             type="text"
@@ -895,7 +966,7 @@
             autofocus
         /></label>
         <label
-          >gemini
+          >Gemini
           <input
             name="gemini"
             type="text"
@@ -910,8 +981,8 @@
             data-form-type="other"
         /></label>
         <p class="actions">
-          <button type="button" command="close" commandfor="live-keys">abort</button>
-          <button value="live">launch</button>
+          <button type="button" command="close" commandfor="live-keys">取消</button>
+          <button value="live">启动</button>
         </p>
       </form>
     </dialog>

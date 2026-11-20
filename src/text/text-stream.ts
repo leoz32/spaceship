@@ -24,7 +24,7 @@ export type TextSource = {
 export type StreamActivity = { isGenerating: boolean; firstChunkMs?: number; wordsPerSecond?: number }
 
 /** Times of the latest generation; `words` counts those after the first chunk, so the rate measures streaming, not latency. */
-type Timing = { startedAt: number; firstChunkAt?: number; lastChunkAt?: number; words: number }
+type Timing = { startedAt: number; firstChunkAt?: number; lastChunkAt?: number; firstChunkWords?: number; words: number }
 
 /** `onChange` is called whenever the text changes and once a generation finishes. */
 export function createTextStream({ expand, complete }: TextSource, onChange: () => void) {
@@ -95,12 +95,14 @@ export function createTextStream({ expand, complete }: TextSource, onChange: () 
       for await (const chunk of complete(prefix, steering, signal)) {
         if (signal.aborted) return "aborted"
         const now = performance.now()
+        text += chunk
+        const units = countWords(text)
         if (started.firstChunkAt === undefined) {
           started.firstChunkAt = now
+          started.firstChunkWords = units
           release()
-        } else started.words += countWords(chunk)
+        } else started.words = Math.max(0, units - started.firstChunkWords!)
         started.lastChunkAt = now
-        text += chunk
         onChange()
       }
       if (signal.aborted) return "aborted"
@@ -126,17 +128,18 @@ export function createTextStream({ expand, complete }: TextSource, onChange: () 
 
   /** Keeps at least the expanded opening, then generates again. */
   function regenerate(count: number, trigger: GenerationTrigger, steering: Steering) {
-    cutAfter(Math.max(count, openingWords))
+    cutAfter(Math.max(count, openingWords), true)
     return generate(trigger, steering)
   }
 
-  function cutAfter(count: number) {
+  function cutAfter(count: number, restarting = false) {
     if (active) {
       active.abort()
       active = undefined
       console.log(`generation ${id} cancel`)
     }
     text = firstWords(text, count)
+    if (!restarting) release()
     if (count === 0) openingWords = 0
   }
 }

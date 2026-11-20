@@ -2,50 +2,44 @@ import { storedApiKey, streamCompletion } from "../llm/cerebras.ts"
 import type { Dimension, DimensionContext, DimensionSource } from "./dimension.ts"
 
 const MENU_SIZE = 5
-const MAX_WORDS_PER_LABEL = 3
-/** Stands for the options of `focus` in the list of axes; the model replaces it with the story's characters. */
-const CHARACTERS_SLOT = "<characters>"
+const CHARACTERS_SLOT = "<人物>"
 
-/** Independent axes of a short passage, most consequential first. `focus` has no generic options: its options are the story's characters. */
 const CATALOG: Dimension[] = [
-  { name: "tension", kind: "scale", low: "relaxed", high: "strained" },
-  { name: "resolution", kind: "scale", low: "open question", high: "answered" },
-  { name: "pace", kind: "scale", low: "compressed", high: "expanded" },
-  { name: "mode", kind: "choice", options: ["dialogue", "action", "description"] },
-  { name: "focus", kind: "choice", options: [] },
-  { name: "tone", kind: "choice", options: ["wry", "tender", "somber", "wondrous"] },
-  { name: "distance", kind: "scale", low: "outside view", high: "inside mind" },
-  { name: "fortune", kind: "scale", low: "worsens", high: "improves" },
-  { name: "surprise", kind: "scale", low: "expected", high: "unexpected" },
+  { name: "张力", kind: "scale", low: "轻松", high: "紧张" },
+  { name: "解谜", kind: "scale", low: "悬而未决", high: "揭晓答案" },
+  { name: "节奏", kind: "scale", low: "简洁推进", high: "细致展开" },
+  { name: "表达", kind: "choice", options: ["对话", "动作", "描写"] },
+  { name: "焦点", kind: "choice", options: [] },
+  { name: "氛围", kind: "choice", options: ["诙谐", "温柔", "沉郁", "奇妙"] },
+  { name: "距离", kind: "scale", low: "外部观察", high: "内心体验" },
+  { name: "际遇", kind: "scale", low: "逐渐恶化", high: "逐渐好转" },
+  { name: "转折", kind: "scale", low: "意料之中", high: "出人意料" },
 ]
 
-const SYSTEM_PROMPT = `
-The user message has the start of a story, cut off where the reader is, sometimes the reader's key phrases (keyword in brackets), and a list of axes. Each axis is one way the next 100 words could vary, written as "name: label | label".
+const SYSTEM_PROMPT = `用户消息包含已有故事、可选的锁定线索（关键词在方括号内）以及可供选择的方向。每个方向都能改变后续一小段故事的写法，格式为“名称: 选项 | 选项”。
 
-Pick the axes that matter most for what could happen next at this point, as many as asked, most important first. With key phrases, favor the axes that act on them. Output the picked lines unchanged, one per line, and nothing else.
+按要求的数量，选择此刻最有意义的方向，最重要的排在前面。有锁定线索时优先选择能影响这些线索的方向。逐行原样返回所选方向，不加任何解释。
 
-The one exception is focus, which is who the passage follows: replace <characters> with each character present in the story, by name or in at most 3 words. Leave focus out when the story has no character yet.
+唯一例外是“焦点”：将 <人物> 替换为故事中已出现的人物，使用姓名或简短称谓，再保留“叙述者”选项。总选项数为 2 至 4 个，每个中文标签不超过 12 字。故事尚无人物时不选焦点。
 
-EXAMPLE
-User:
-Story: Mara had locked the kitchen an hour ago. Now a chair scraped across its tiles, and her brother was not answering his phone. She lay still and
-Axes:
-tension: relaxed | strained
-pace: compressed | expanded
-mode: dialogue | action | description
-focus: <characters> | narrator
-fortune: worsens | improves
-Pick 3.
-Assistant:
-tension: relaxed | strained
-focus: Mara | her brother | narrator
-mode: dialogue | action | description
-`.trim()
+示例
+用户：
+故事：艾拉推开古堡大门，发现父亲留下的信不见了。
+方向：
+张力: 轻松 | 紧张
+节奏: 简洁推进 | 细致展开
+表达: 对话 | 动作 | 描写
+焦点: <人物> | 叙述者
+际遇: 逐渐恶化 | 逐渐好转
+选择 3 个。
+助手：
+张力: 轻松 | 紧张
+焦点: 艾拉 | 父亲 | 叙述者
+表达: 对话 | 动作 | 描写`
 
-/** One call offers the menu: the free catalog axes that matter most here, with the story's characters as the options of `focus`. Axes the model leaves out or garbles are filled in from the catalog. */
 export const liveDimension: DimensionSource = async function* (context, signal) {
   const apiKey = storedApiKey()
-  if (!apiKey) throw new Error("save an API key first")
+  if (!apiKey) throw new Error("请先在模型设置中填写 API Key")
 
   const takenNames = context.taken.map(({ name }) => name.toLowerCase())
   const free = CATALOG.filter(({ name }) => !takenNames.includes(name))
@@ -83,18 +77,17 @@ async function* linesOf(deltas: AsyncIterable<string>) {
 }
 
 function userMessageOf({ text, leads }: DimensionContext, free: Dimension[], size: number) {
-  const keyPhrases = leads.length ? `Key phrases:\n${leads.map(({ before, keyword, after }) => `- ${before}[${keyword}]${after}`).join("\n")}\n` : ""
-  return `Story: ${text}\n${keyPhrases}Axes:\n${free.map(axisLine).join("\n")}\nPick ${size}.`
+  const keyPhrases = leads.length ? `锁定线索：\n${leads.map(({ before, keyword, after }) => `- ${before}[${keyword}]${after}`).join("\n")}\n` : ""
+  return `故事：${text}\n${keyPhrases}方向：\n${free.map(axisLine).join("\n")}\n选择 ${size} 个。`
 }
 
 function axisLine(axis: Dimension) {
   if (axis.kind === "scale") return `${axis.name}: ${axis.low} | ${axis.high}`
-  return `${axis.name}: ${axis.options.length ? axis.options.join(" | ") : `${CHARACTERS_SLOT} | narrator`}`
+  return `${axis.name}: ${axis.options.length ? axis.options.join(" | ") : `${CHARACTERS_SLOT} | 叙述者`}`
 }
 
-/** Reads a "name: label | label" line as one of `axes`, keeping that axis's kind; undefined when it is not one of them or its labels do not fit the kind. */
 function dimensionOf(line: string, axes: Dimension[]): Dimension | undefined {
-  const [name, rest] = line.split(":", 2).map((part) => part.trim())
+  const [name, rest] = line.split(/[:：]/u, 2).map((part) => part.trim())
   const axis = axes.find((axis) => axis.name === name.toLowerCase())
   const labels = (rest ?? "").split("|").map(plainLabel)
   if (!axis || !labels.every(isValidLabel)) return
@@ -103,14 +96,14 @@ function dimensionOf(line: string, axes: Dimension[]): Dimension | undefined {
   return labels.length >= 2 && labels.length <= 4 ? { name: axis.name, kind: "choice", options: labels } : undefined
 }
 
-/** Drops a parenthesised aside, which the model sometimes adds to a character. */
 function plainLabel(label: string) {
   return label
-    .replace(/\(.*?\)/g, "")
+    .replace(/[（(].*?[）)]/gu, "")
     .replace(/\s+/g, " ")
     .trim()
 }
 
 function isValidLabel(label: string) {
-  return label !== "" && label !== CHARACTERS_SLOT && label.split(" ").length <= MAX_WORDS_PER_LABEL
+  if (!label || label === CHARACTERS_SLOT) return false
+  return /\p{Script=Han}/u.test(label) ? [...label].length <= 12 : label.split(/\s+/u).length <= 3
 }

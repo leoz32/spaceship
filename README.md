@@ -1,63 +1,39 @@
-# 🕹️ Spaceship IDE
+# 🕹️ Spaceship IDE 中文版
 
-Steer your ideas in realtime, space pilot style!
+用旋钮和滑块参与故事创作：向前探索，向后重写，随时调整人物、线索与叙事方向。
 
-![Screencast](./extra/screencast.gif)
+这是 [Chuanqi Sun 的 Spaceship IDE](https://github.com/chuanqisun/spaceship) 的中文分支。保留原作者的交互设计、生成调度与 MIT 许可证。上游介绍见 [README.en.md](README.en.md)。
 
-## Demos
+## 运行
 
-Watch on [Instagram](https://www.instagram.com/reels/DfyQPhFtW-z/) and [YouTube](https://www.youtube.com/watch?v=3WmNLWUmcnY). You can try the simulator at [https://chuanqisun.github.io/spaceship/](https://chuanqisun.github.io/spaceship/) with the option to go live with your API keys for Cerebras and Gemini. Keys stay in your browser local storage. Do it at your own risk.
+建议使用 Node.js 24 LTS 和桌面浏览器。
 
-## Conjecture
-
-> In the near future, LLM and Decision Models will reach 60 FPS interactivity.
-
-When that happens, what new interaction paradigms will unlock? This project demonstrates plausible and desirable interactions for that future.
-
-1. **Focus monitor**: can we visualize what LLM is paying attention to, and use that to guide human's focus towards what's important?
-
-   ![focus monitor](./extra/clips/focus-monitor.gif)
-
-2. **Attention lock**: can we force LLM to pay more attention to specific phrases so as to bias its future behavior?
-
-   ![attention lock](./extra/clips/attention-lock.gif)
-
-3. **Future Vector Steering**: can we decompose the task into eigenvectors, independently tune each, and re-compose them to influence the incoming text?
-
-   ![future steering](./extra/clips/future-steering.gif)
-
-4. **Realtime re-generation**: when text generation is cheap and fast, can we explore alternative futures by scrubbing?
-
-   ![realtime regeneration](./extra/clips/realtime-regeneration.gif)
-
-## Design process
-
-I used Claude Code for most of the implementation but stayed hands-on for the UI/UX. I iterate using interactive style swatch, a technique where I prompt AI to give me diverse options of designs, I provide feedback, and it iterates. You can see the design artifacts in the [extra page](https://chuanqisun.github.io/spaceship/extra/style-1.html).
-
-To achieve the realtime experience, I have to use agreesive speculative generation and manage cache invalidation based on user interactions. For example, when the main knob moves backward, I have to empty future texts and cancel ongoing requests. There are many considerations like this throughout the system and that took a lot of human judgement - claude didn't one shot them.
-
-## Theory
-
-I'm currently focusing on systems that help human shape ideas in realtime. This project is a small step towards my [upcoming thesis](https://code.chuanqisun.com/master-thesis/) at the MIT Media Lab, where I investigate how semantic and symoblic systems can be coupled to enhance human creativity, agency, and joy of craft.
-
-## Community
-
-This repo can be the conceptual launchpad for new designs and applications. Here is what the community has built. Open a PR to add yours!
-
-- [Spaceship Writer](https://marketplace.visualstudio.com/items?itemName=brentlee-personal.spaceship-writer), a VSCode Extension by [brentlee](https://github.com/brentlee-personal)
-- [Spaceship Lime](https://spaceship-lime.vercel.app), steer local models in browser, by [Philippe](https://github.com/philippe-page)
-
-## Citation
-
-If you build on this work, please cite it as:
-
-```bibtex
-@misc{sun2026spaceship,
-  author       = {Sun, Chuanqi},
-  title        = {Spaceship {IDE}: Steer Your Ideas in Realtime, Space Pilot Style},
-  year         = {2026},
-  publisher    = {GitHub},
-  howpublished = {\url{https://github.com/chuanqisun/spaceship}},
-  note         = {Demo: \url{https://chuanqisun.github.io/spaceship/}}
-}
+```bash
+git clone --branch zh-CN https://github.com/leoz32/spaceship.git
+cd spaceship
+npm ci
+npm run dev
 ```
+
+打开终端显示的地址。模拟模式不需要 API 密钥，使用中文故事和演示评分。首次运行需要联网安装依赖。
+
+## 操作
+
+- **阅读与重写**：拖动正文末尾的圆点向前阅读；往回拖动可丢弃后续文本，探索新写法。
+- **重点高亮与锁定**：双击圆点查看模型选出的重点；拖动高亮内容，让后续生成围绕该人物或线索。
+- **方向旋钮**：双击圆点后按住，拉出方向旋钮，调节张力、节奏、语气等；拉远旋钮增加影响强度，双击删除。
+- **模拟 / 实时**：底部切换模式。模拟模式用于体验；实时模式使用你配置的模型并消耗 API 额度。
+
+中文按字、英文按词控制阅读位置与速度，关键词高亮使用中文分词。这些计数不是模型计费的 token 数。
+
+## 本分支的汉化范围
+
+主应用界面、无障碍标签、操作说明、默认故事、生成与分析提示词，以及中文标点、逐字回退与高亮定位。`extra/` 保留上游的英文设计过程和历史实验，入口已注明。
+
+## 实现边界
+
+“60 FPS”是上游探索的未来交互设想，不是每秒完成 60 次模型推理的性能承诺。当前体验来自流式生成、提前生成、缓存和取消过期请求。界面重点和分数是对文本的分析，不是模型内部注意力权重，也没有直接修改模型的激活向量。
+
+## 致谢与许可
+
+原作者：[Chuanqi Sun](https://github.com/chuanqisun)。上游：[chuanqisun/spaceship](https://github.com/chuanqisun/spaceship)。使用和再分发请保留 [MIT LICENSE](LICENSE) 与原作者信息。引用信息见 [CITATION.cff](CITATION.cff)。

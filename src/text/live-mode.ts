@@ -12,7 +12,7 @@ export function bindModeToggle(toggle: HTMLButtonElement, dialog: HTMLDialogElem
   const form = dialog.querySelector("form")!
   const inputOf = (name: string) => form.elements.namedItem(name) as HTMLInputElement
   toggle.setAttribute("aria-pressed", `${isLive}`)
-  toggle.querySelector("b")!.textContent = isLive ? "flight" : "sim"
+  toggle.querySelector("b")!.textContent = isLive ? "实时" : "模拟"
 
   toggle.addEventListener("click", () => {
     if (isLive) return reloadAs(false)
